@@ -5,6 +5,7 @@ from src.images_dataset import MicroscopicImagesZurich
 import torch.optim as optim
 from torchsummary import summary
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import os
 import shutil
 import torch.nn as nn
@@ -40,6 +41,12 @@ NUM_EPOCHS = 10000 # we use early stopping anyway
 OPTIMIZER = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 save_model_path='outputs/model_basicautoencoder.pt'
 torch.manual_seed(RANDOM_SEED)
+SCHEDULER = ReduceLROnPlateau(
+    OPTIMIZER,
+    mode='min',      # The scheduler will reduce the LR when the quantity monitored has stopped decreasing.
+    factor=0.5,      # Factor by which the learning rate will be reduced. new_lr = lr * factor.
+    patience=3     # Number of epochs with no improvement after which learning rate will be reduced.
+)
 
 ### load data
 base_folder = "data/Mikroskopie_structured_CLAHE"
@@ -61,20 +68,21 @@ trained_model, log_dict=train_autoencoder(NUM_EPOCHS,
                                           train_loader, 
                                           val_loader, 
                                           loss_fn=combined_loss, 
+                                          scheduler=SCHEDULER,
                                           skip_epoch_stats=False, 
-                                          plot_losses_path='outputs/losses.png', 
+                                          plot_losses_path='outputs/zurich/losses.png', 
                                           save_model_path=save_model_path)
 
 model = torch.load(save_model_path, map_location=DEVICE)
-visualize_reconstruction(model, DEVICE, train_loader, num_images=10, path='outputs/traindataset_reconstruction.png')
-visualize_reconstruction(model, DEVICE, val_loader, num_images=10, path='outputs/validationdataset_reconstruction.png')
+visualize_reconstruction(model, DEVICE, train_loader, num_images=10, path='outputs/zurich/traindataset_reconstruction.png')
+visualize_reconstruction(model, DEVICE, val_loader, num_images=10, path='outputs/zurich/validationdataset_reconstruction.png')
 
 
 # # #to generate encoded images with trained model, first copy the preprocessed data folder in the output folder and rename, then run this code:
 
 # Copy the folder structure from src_folder to dst_folder
 src_folder = base_folder
-dst_folder = 'outputs/all_images_encoded'
+dst_folder = 'outputs/zurich/all_images_encoded'
 shutil.copytree(src_folder, dst_folder)
 
 dataset= MicroscopicImagesZurich(root=dst_folder,  start_folder='2010-03-10', end_folder='2024-11-28', transform=None)
@@ -105,7 +113,7 @@ def encode_images(trained_model, dataset):
 # # Encode and save for both magnifications
 encode_images(model, dataset)
 
-# ## plot latent space
+# ## plot latent space, only if latent space is not flattened
 # import matplotlib.pyplot as plt
 # path='outputs/microscope_images_encoded/2023-10-20/basin5/10x/2023-10-20 Pilote 10X B5 1_encoded.pt'
 # #path='outputs/microscope_images_encoded_jointloss/2024-03-12/basin5/40x/12125430_encoded.pt'

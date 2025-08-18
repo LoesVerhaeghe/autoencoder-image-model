@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 
 def train_autoencoder(num_epochs, model, optimizer, device, train_loader, val_loader=None,
-                         loss_fn=nn.MSELoss(), skip_epoch_stats=False, plot_losses_path=None, save_model_path=None, 
+                         loss_fn=nn.MSELoss(), scheduler=None, skip_epoch_stats=False, plot_losses_path=None, save_model_path=None, 
                          patience=5):
     # Use GPU if available
     model.to(device)
@@ -110,6 +110,9 @@ def train_autoencoder(num_epochs, model, optimizer, device, train_loader, val_lo
                 if patience_counter >= patience:
                     print(f"Early stopping at epoch {epoch + 1}. Best validation loss: {best_val_loss:.4f}")
                     break  # Stop training
+
+            if scheduler:
+                scheduler.step(avg_val_total_loss)
 
         if not skip_epoch_stats:
             print(f'Epoch [{epoch + 1}/{num_epochs}] | Time: {((time.time() - epoch_start_time)/60):.2f} min')
