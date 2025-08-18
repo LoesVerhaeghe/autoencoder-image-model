@@ -1,5 +1,5 @@
 data/
-output/
+outputs/
 results/
 __pycache__/
 *.pyc
