@@ -39,7 +39,7 @@ LEARNING_RATE = 0.0001 # bigger than 0.0001 ends in local minima
 BATCH_SIZE = 16
 NUM_EPOCHS = 10000 # we use early stopping anyway
 OPTIMIZER = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-save_model_path='outputs/model_basicautoencoder.pt'
+save_model_path='outputs/zurich/model_basicautoencoder.pt'
 torch.manual_seed(RANDOM_SEED)
 SCHEDULER = ReduceLROnPlateau(
     OPTIMIZER,
