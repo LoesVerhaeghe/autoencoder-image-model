@@ -83,7 +83,7 @@ y_val = TSS_labels[val_indices]
 ############################################################
 
 
-#### hyperparametertune
+### hyperparametertune
 
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.ensemble import RandomForestRegressor
@@ -92,21 +92,38 @@ param_dist = {
     'max_depth': [5, 10, 15, 20, 30, None],
     'min_samples_split': [2, 5, 10, 20],
     'min_samples_leaf': [1, 2, 4, 8],
-    'max_features': ['sqrt', 'log2', None]
+    'max_features': ['log2'] #None is overfitting, sqrt is underfitting
 }
 rf = RandomForestRegressor(random_state=42, n_jobs=-1)
 random_search = RandomizedSearchCV(
     rf,
     param_distributions=param_dist,
-    n_iter=20,  
+    n_iter=50,  
     cv=[(train_indices, val_indices)],  # time-aware split
     scoring='neg_mean_squared_error',
     random_state=42,
-    n_jobs=-1
+    n_jobs=-1,
+    verbose=2
 )
-random_search.fit(all_features_agg, TSS_labels)
+X_combined = np.concatenate([X_train, X_val], axis=0)
+y_combined = np.concatenate([y_train, y_val], axis=0)
+
+random_search.fit(X_combined, y_combined)
 print("Best params:", random_search.best_params_)
+#Best params: {'n_estimators': 100, 'min_samples_split': 2, 'min_samples_leaf': 1, 'max_features': None, 'max_depth': None}
 best_rf = random_search.best_estimator_
+
+# best_rf = RandomForestRegressor(
+#     n_estimators=100,
+#     min_samples_split=2,
+#     min_samples_leaf=1,
+#     max_features=None,
+#     max_depth=None,
+#     random_state=42,
+#     n_jobs=-1  
+# )
+
+best_rf.fit(X_train, y_train)
 
 # --- Predict on ALL Data for Hybrid Model ---
 y_pred_all = best_rf.predict(all_features_agg)
