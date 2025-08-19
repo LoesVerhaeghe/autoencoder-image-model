@@ -11,8 +11,8 @@ from skimage.morphology import disk
 from skimage.filters import rank
 # copy the folder containing all images
 
-src_folder = 'data/Mikroskopie_structured'
-dst_folder = 'data/Mikroskopie_structured_CLAHE'
+src_folder = 'data/zurich/Mikroskopie_structured'
+dst_folder = 'data/zurich/Mikroskopie_structured_CLAHE'
 
 #shutil.copytree(src_folder, dst_folder)
 
@@ -114,10 +114,11 @@ def preprocess_image_CLAHE(path, target_size=(512, 384)):
 
 
 # save all paths
-paths=extract_image_paths_zurich(dst_folder, start_folder='2010-03-10', end_folder='2024-11-28')
+paths=extract_image_paths_zurich(dst_folder, start_folder='2010-03-10', end_folder='2010-03-19')
     
 for path in paths:
     # image = cv2.imread(path)
+    print(path)
     padded=preprocess_image_CLAHE(path)
 
     # # Visualize the original and edge-detected images side by side

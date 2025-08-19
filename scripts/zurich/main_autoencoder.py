@@ -49,7 +49,7 @@ SCHEDULER = ReduceLROnPlateau(
 )
 
 ### load data
-base_folder = "data/Mikroskopie_structured_CLAHE"
+base_folder = "data/zurich/Mikroskopie_structured_CLAHE"
 dataset = MicroscopicImagesZurich(root=base_folder, start_folder='2010-03-10', end_folder='2020-12-14', transform=None)
 
 train_size = int(0.9 * len(dataset))
@@ -60,18 +60,18 @@ train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, num_workers=1, pin_memory=True, shuffle=True, drop_last=True)
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, num_workers=1, pin_memory=True, shuffle=False)
 
-## Train autoencoder
-trained_model, log_dict=train_autoencoder(NUM_EPOCHS, 
-                                          model, 
-                                          OPTIMIZER, 
-                                          DEVICE, 
-                                          train_loader, 
-                                          val_loader, 
-                                          loss_fn=combined_loss, 
-                                          scheduler=SCHEDULER,
-                                          skip_epoch_stats=False, 
-                                          plot_losses_path='outputs/zurich/losses.png', 
-                                          save_model_path=save_model_path)
+# ## Train autoencoder
+# trained_model, log_dict=train_autoencoder(NUM_EPOCHS, 
+#                                           model, 
+#                                           OPTIMIZER, 
+#                                           DEVICE, 
+#                                           train_loader, 
+#                                           val_loader, 
+#                                           loss_fn=combined_loss, 
+#                                           scheduler=SCHEDULER,
+#                                           skip_epoch_stats=False, 
+#                                           plot_losses_path='outputs/zurich/losses.png', 
+#                                           save_model_path=save_model_path)
 
 model = torch.load(save_model_path, map_location=DEVICE)
 visualize_reconstruction(model, DEVICE, train_loader, num_images=10, path='outputs/zurich/traindataset_reconstruction.png')

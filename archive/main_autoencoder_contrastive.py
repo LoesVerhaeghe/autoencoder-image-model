@@ -1,7 +1,7 @@
-from utils.plotting_utilities import visualize_reconstruction
-from src.model_structure import AutoencoderWithContrastiveHead, Autoencoder
+from utils.plotting_utilities import visualize_reconstruction_contrastive
+from src.model_structure_contrastive import AutoencoderWithContrastiveHead
 from src.training_contrastive_autoencoder import train_contrastive_autoencoder
-from src.images_dataset import ContrastiveMicroscopicImagesZurich, MicroscopicImagesZurich
+from src.images_dataset_contrastive import ContrastiveMicroscopicImagesZurich, MicroscopicImagesZurich
 import torch.optim as optim
 from torchsummary import summary
 import torch
@@ -152,8 +152,8 @@ val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, num_workers=1, pin_m
 #                                           save_model_path=save_model_path)
 
 model = torch.load(save_model_path, map_location=DEVICE)
-visualize_reconstruction(model, DEVICE, train_loader, num_images=5, path='outputs/traindataset_reconstruction.png')
-visualize_reconstruction(model, DEVICE, val_loader, num_images=5, path='outputs/validationdataset_reconstruction.png')
+visualize_reconstruction_contrastive(model, DEVICE, train_loader, num_images=5, path='outputs/traindataset_reconstruction.png')
+visualize_reconstruction_contrastive(model, DEVICE, val_loader, num_images=5, path='outputs/validationdataset_reconstruction.png')
 
 # # #to generate encoded images with trained model, first copy the preprocessed data folder in the output folder and rename, then run this code:
 

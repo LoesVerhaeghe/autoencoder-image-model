@@ -43,7 +43,7 @@ class DailySequenceDataset(Dataset):
         samples = []
 
         for i in range(self.seq_len - 1, len(self.dates)):
-            sequence_dates = self.dates[i - self.seq_len + 1:i]
+            sequence_dates = self.dates[i - self.seq_len + 1:i+1]
             feature_seq = []
             
             for date in sequence_dates:
@@ -214,12 +214,12 @@ def train_model(model, train_loader, val_loader, optimizer, scheduler, criterion
 
 #####################################################################################################################
 # Load ALL Features, Aggregate, Create Labels and Folder Mapping 
-path_to_mainfolder = "outputs/all_images_encoded_contrastive"
+path_to_mainfolder = "outputs/zurich/all_images_encoded"
 
 all_image_folders = sorted(listdir(path_to_mainfolder))
 num_folders_total = len(all_image_folders)
 
-df_TSS=pd.read_csv('data/SST_TSS.csv', index_col=0)
+df_TSS=pd.read_csv('data/zurich/SST_TSS.csv', index_col=0)
 
 features_per_date={}
 target_per_date={}
@@ -287,7 +287,7 @@ model = FullPipelineModel(input_dim=1024,
                           embed_dim=1024,
                           n_heads=4, 
                           n_layers=2,
-                          agg_output_dim=1024,
+                          agg_output_dim=2048,
                           #lstm parameters
                           lstm_hidden=256,
                           num_layers=1).to(device)
