@@ -5,12 +5,12 @@ from os import listdir, path as os_path
 from sklearn.ensemble import RandomForestRegressor
 import torch
 
-path_to_mainfolder = "outputs/all_images_encoded"
+path_to_mainfolder = "outputs/zurich/all_images_encoded"
 
 all_image_folders = sorted(listdir(path_to_mainfolder))
 num_folders_total = len(all_image_folders)
 
-df_TSS=pd.read_csv('data/SST_TSS.csv', index_col=0)
+df_TSS=pd.read_csv('data/zurich/SST_TSS.csv', index_col=0)
 
 
 # --- Load ALL Features, Aggregate, Create Labels and Folder Mapping ---
@@ -25,7 +25,6 @@ for folder in all_image_folders:
     path_to_folder = f"{path_to_mainfolder}/{folder}"
     images_in_folder_count = 0
     for subfolder in listdir(path_to_folder):
-        
         if subfolder!='RLB-S' and subfolder!='RLB-N':
             path_to_subfolder=f"{path_to_folder}/{subfolder}"
             if not os_path.exists(path_to_subfolder) or not listdir(path_to_subfolder):
@@ -36,16 +35,8 @@ for folder in all_image_folders:
             for image_file in images_list_embeddings:
                 try:
                     img_path = f"{path_to_subfolder}/{image_file}"
-                    embedding = torch.load(img_path).cpu().numpy() # Shape (Channel, Height, Width) e.g. (8, 24, 32)
-                    # --- Feature Aggregation ---
-                    # mean/max/min per channel 
-                    #aggregated_features = np.mean(embedding, axis=(1, 2)) # Shape: (C,) e.g. (8,)
-
-                    # mean/max/min per pixel
-                    #embedding = np.min(embedding, axis=0)  
-                    aggregated_features= embedding.flatten()
-
-                    all_features_list.append(aggregated_features)
+                    embedding = torch.load(img_path).cpu().numpy() 
+                    all_features_list.append(embedding)
 
                     # Assign labels corresponding to this FOLDER (time point 'folder_idx_counter')
                     all_labels_TSS_list.append(df_TSS['SST_TSS'].loc[folder].item())
@@ -72,36 +63,53 @@ assert len(all_features_agg) == len(TSS_labels) # Check features match labels
 
 # --- Split Based on Time (Processed Folders) ---
 # Use the number of *processed* folders for splitting
-train_indices_folders=np.arange(0, 310)
-test_indices_folders=np.arange(310, 379)
+train_indices_folders=np.arange(0, 210)
+val_indices_folders = np.arange(210, 260) 
+test_indices_folders=np.arange(260, 379)
 
 # Get indices of features belonging to train folders vs test folders
 train_indices = np.where(np.isin(feature_folder_map, train_indices_folders))[0]
+val_indices = np.where(np.isin(feature_folder_map, val_indices_folders))[0]
 test_indices = np.where(np.isin(feature_folder_map, test_indices_folders))[0]
-
-print(f"Train set size: {len(train_indices)} images")
-print(f"Test set size: {len(test_indices)} images")
 
 # --- Create Train ---
 X_train = all_features_agg[train_indices]
 y_train = TSS_labels[train_indices]
+X_val = all_features_agg[val_indices]
+y_val = TSS_labels[val_indices]
 
 ############################################################
 #### Train model (Random Forest) ####
 ############################################################
 
-# Define the RandomForest model
-#the parameters were a little bit optimized (tried 4-5 different pairs)
-rf = RandomForestRegressor(n_estimators=25,
-                               max_depth=15,
-                               random_state=42,
-                               n_jobs=-1) # Use all available CPU cores
 
-# Train the model
-rf.fit(X_train, y_train)
+#### hyperparametertune
+
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.ensemble import RandomForestRegressor
+param_dist = {
+    'n_estimators': [50, 100, 200, 300, 400, 500],
+    'max_depth': [5, 10, 15, 20, 30, None],
+    'min_samples_split': [2, 5, 10, 20],
+    'min_samples_leaf': [1, 2, 4, 8],
+    'max_features': ['sqrt', 'log2', None]
+}
+rf = RandomForestRegressor(random_state=42, n_jobs=-1)
+random_search = RandomizedSearchCV(
+    rf,
+    param_distributions=param_dist,
+    n_iter=20,  
+    cv=[(train_indices, val_indices)],  # time-aware split
+    scoring='neg_mean_squared_error',
+    random_state=42,
+    n_jobs=-1
+)
+random_search.fit(all_features_agg, TSS_labels)
+print("Best params:", random_search.best_params_)
+best_rf = random_search.best_estimator_
 
 # --- Predict on ALL Data for Hybrid Model ---
-y_pred_all = rf.predict(all_features_agg)
+y_pred_all = best_rf.predict(all_features_agg)
 
 # --- Average Predictions and Calculate Std Dev per Time Point (Folder) ---
 average_preds = []
@@ -147,11 +155,16 @@ plt.figure(figsize=(14, 3), dpi=200)
 plt.rcParams.update({'font.size': 12})    
 plt.plot(df_TSS['SST_TSS'], '.-', label='Measurements', color='blue')
 plt.plot(TSS_predictions.iloc[train_indices_folders], '.-', label='HM predictions (train)', color='orange')
+plt.plot(TSS_predictions.iloc[val_indices_folders], '.-', label='HM predictions (validation)', color='green')
 plt.plot(TSS_predictions.iloc[test_indices_folders], '.-', label='HM predictions (test)', color='red')
 plt.fill_between(TSS_predictions.index[train_indices_folders],
                  TSS_lower.iloc[train_indices_folders],
                  TSS_upper.iloc[train_indices_folders],
                  color='orange', alpha=0.2, zorder=1)
+plt.fill_between(TSS_predictions.index[val_indices_folders],
+                 TSS_lower.iloc[val_indices_folders],
+                 TSS_upper.iloc[val_indices_folders],
+                 color='green', alpha=0.2, zorder=1)
 plt.fill_between(TSS_predictions.index[test_indices_folders],
                  TSS_lower.iloc[test_indices_folders],
                  TSS_upper.iloc[test_indices_folders],
