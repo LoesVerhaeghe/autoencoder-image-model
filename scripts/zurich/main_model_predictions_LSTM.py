@@ -43,7 +43,7 @@ class DailySequenceDataset(Dataset):
         samples = []
 
         for i in range(self.seq_len - 1, len(self.dates)):
-            sequence_dates = self.dates[i - self.seq_len + 1:i+1]
+            sequence_dates = self.dates[i - self.seq_len + 1:i+1] #if you put here only i instead of i+1, you will forecast! also nice option btw
             feature_seq = []
             
             for date in sequence_dates:
@@ -257,7 +257,7 @@ for folder in all_image_folders:
     folder_idx_counter += 1 # Move to the next folder's error value
     
 feature_folder_map = np.array(feature_folder_map) 
-seq_len=4
+seq_len=3
 #### test dataset class
 dataset = DailySequenceDataset(features_per_date, target_per_date, seq_len=seq_len, n_images=24)
 
@@ -273,29 +273,28 @@ for i, (features, target) in enumerate(dataset.samples):
 train_indices_folders=np.arange(0, 210) 
 val_indices_folders = np.arange(210, 260) 
 
-
 train_set = Subset(dataset, train_indices_folders)
 val_set = Subset(dataset, val_indices_folders)
 
-train_loader = DataLoader(train_set, batch_size=16, shuffle=True)
+train_loader = DataLoader(train_set, batch_size=16, shuffle=True) #shuffle can be put on true as you prepped your data correctly to look back at previous timesteps
 val_loader = DataLoader(val_set, batch_size=16, shuffle=True)
 
 ## define and train model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = FullPipelineModel(input_dim=1024, 
                           #transformer parameters
-                          embed_dim=1024,
+                          embed_dim=512,
                           n_heads=4, 
                           n_layers=2,
-                          agg_output_dim=2048,
+                          agg_output_dim=256,
                           #lstm parameters
-                          lstm_hidden=256,
+                          lstm_hidden=512,
                           num_layers=1).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.75)
 criterion = nn.MSELoss()
 
-trained_model=train_model(model, train_loader, val_loader, optimizer, scheduler, criterion, epochs=200)
+trained_model=train_model(model, train_loader, val_loader, optimizer, scheduler, criterion, epochs=150)
 
 ### testing
 full_loader = DataLoader(dataset, batch_size=1, shuffle=False)
