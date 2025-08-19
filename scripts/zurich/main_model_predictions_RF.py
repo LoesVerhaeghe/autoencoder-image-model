@@ -85,43 +85,42 @@ y_val = TSS_labels[val_indices]
 
 ### hyperparametertune
 
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.ensemble import RandomForestRegressor
-param_dist = {
-    'n_estimators': [50, 100, 200, 300, 400, 500],
-    'max_depth': [5, 10, 15, 20, 30, None],
-    'min_samples_split': [2, 5, 10, 20],
-    'min_samples_leaf': [1, 2, 4, 8],
-    'max_features': ['log2'] #None is overfitting, sqrt is underfitting
-}
-rf = RandomForestRegressor(random_state=42, n_jobs=-1)
-random_search = RandomizedSearchCV(
-    rf,
-    param_distributions=param_dist,
-    n_iter=50,  
-    cv=[(train_indices, val_indices)],  # time-aware split
-    scoring='neg_mean_squared_error',
-    random_state=42,
-    n_jobs=-1,
-    verbose=2
-)
-X_combined = np.concatenate([X_train, X_val], axis=0)
-y_combined = np.concatenate([y_train, y_val], axis=0)
-
-random_search.fit(X_combined, y_combined)
-print("Best params:", random_search.best_params_)
-#Best params: {'n_estimators': 100, 'min_samples_split': 2, 'min_samples_leaf': 1, 'max_features': None, 'max_depth': None}
-best_rf = random_search.best_estimator_
-
-# best_rf = RandomForestRegressor(
-#     n_estimators=100,
-#     min_samples_split=2,
-#     min_samples_leaf=1,
-#     max_features=None,
-#     max_depth=None,
+# from sklearn.model_selection import RandomizedSearchCV
+# param_dist = {
+#     'n_estimators': [50, 100, 200, 300, 400, 500],
+#     'max_depth': [5, 10, 15, 20, 30, None],
+#     'min_samples_split': [2, 5, 10, 20],
+#     'min_samples_leaf': [1, 2, 4, 8],
+#     'max_features': ['log2'] #None is overfitting, sqrt is underfitting
+# }
+# rf = RandomForestRegressor(random_state=42, n_jobs=-1)
+# random_search = RandomizedSearchCV(
+#     rf,
+#     param_distributions=param_dist,
+#     n_iter=50,  
+#     cv=[(train_indices, val_indices)],  # time-aware split
+#     scoring='neg_mean_squared_error',
 #     random_state=42,
-#     n_jobs=-1  
+#     n_jobs=-1,
+#     verbose=2
 # )
+# X_combined = np.concatenate([X_train, X_val], axis=0)
+# y_combined = np.concatenate([y_train, y_val], axis=0)
+
+# random_search.fit(X_combined, y_combined)
+# print("Best params:", random_search.best_params_)
+# #Best params: {'n_estimators': 50, 'min_samples_split': 10, 'min_samples_leaf': 2, 'max_features': 'log2', 'max_depth': 15}
+# best_rf = random_search.best_estimator_
+
+best_rf = RandomForestRegressor(
+    n_estimators=50,
+    min_samples_split=10,
+    min_samples_leaf=2,
+    max_features='log2',
+    max_depth=15,
+    random_state=42,
+    n_jobs=-1  
+)
 
 best_rf.fit(X_train, y_train)
 
