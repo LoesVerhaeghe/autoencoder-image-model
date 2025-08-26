@@ -233,7 +233,8 @@ for folder in all_image_folders:
     path_to_folder = f"{path_to_mainfolder}/{folder}"
     images_in_folder_count = 0
     for subfolder in listdir(path_to_folder):
-        if subfolder!='RLB-S' and subfolder!='RLB-N':
+        #if subfolder!='RLB-S' and subfolder!='RLB-N':
+        if subfolder:
             path_to_subfolder=f"{path_to_folder}/{subfolder}"
             if not os_path.exists(path_to_subfolder) or not listdir(path_to_subfolder):
                 print(f"Warning: Embeddings path not found or empty for folder {folder}/{subfolder}, skipping.")
@@ -259,7 +260,7 @@ for folder in all_image_folders:
 feature_folder_map = np.array(feature_folder_map) 
 seq_len=3
 #### test dataset class
-dataset = DailySequenceDataset(features_per_date, target_per_date, seq_len=seq_len, n_images=24)
+dataset = DailySequenceDataset(features_per_date, target_per_date, seq_len=seq_len, n_images=28)
 
 # Check how many sequences were created
 print(f"Number of sequences: {len(dataset.samples)}")
@@ -279,6 +280,7 @@ val_set = Subset(dataset, val_indices_folders)
 train_loader = DataLoader(train_set, batch_size=16, shuffle=True) #shuffle can be put on true as you prepped your data correctly to look back at previous timesteps
 val_loader = DataLoader(val_set, batch_size=16, shuffle=True)
 
+
 ## define and train model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = FullPipelineModel(input_dim=1024, 
@@ -286,12 +288,12 @@ model = FullPipelineModel(input_dim=1024,
                           embed_dim=512,
                           n_heads=4, 
                           n_layers=2,
-                          agg_output_dim=256,
+                          agg_output_dim=2048,
                           #lstm parameters
-                          lstm_hidden=512,
+                          lstm_hidden=1024,
                           num_layers=1).to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
-scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.75)
+optimizer = optim.Adam(model.parameters(), lr=1e-5)
+scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.85)
 criterion = nn.MSELoss()
 
 trained_model=train_model(model, train_loader, val_loader, optimizer, scheduler, criterion, epochs=150)
