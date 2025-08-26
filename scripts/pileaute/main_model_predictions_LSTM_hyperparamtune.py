@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data import Subset
 import torch.optim as optim
+import optuna
 from copy import deepcopy
 
 def set_seed(seed=42):
@@ -209,7 +210,7 @@ def train_model(model, train_loader, val_loader, optimizer, scheduler, criterion
     plt.legend()
 
     model.load_state_dict(best_model_state)
-    return model
+    return model, best_val_loss
 
 
 #####################################################################################################################
@@ -273,22 +274,77 @@ val_set = Subset(dataset, val_indices_folders)
 train_loader = DataLoader(train_set, batch_size=16, shuffle=True) #shuffle can be put on true as you prepped your data correctly to look back at previous timesteps
 val_loader = DataLoader(val_set, batch_size=16, shuffle=True)
 
-## define and train model
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Optuna objective 
+def objective(trial):
+    # Suggest hyperparameters
+    embed_dim = trial.suggest_categorical("embed_dim", [128, 256, 512, 1024])
+    n_heads = trial.suggest_categorical("n_heads", [2, 4, 8])
+    n_layers = trial.suggest_int("n_layers", 1, 2, 4)
+    agg_output_dim = trial.suggest_categorical("agg_output_dim", [512, 1024, 2048, 4098])
+    lstm_hidden = trial.suggest_categorical("lstm_hidden", [32, 64, 128, 256, 512, 1024])
+    num_layers = trial.suggest_int("num_layers", 1, 2)
+
+    # Build model
+    model = FullPipelineModel(
+        input_dim=1024,
+        embed_dim=embed_dim,
+        n_heads=n_heads,
+        n_layers=n_layers,
+        agg_output_dim=agg_output_dim,
+        lstm_hidden=lstm_hidden,
+        num_layers=num_layers,
+    ).to(device)
+
+    optimizer = optim.Adam(model.parameters(), lr=1e-5)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, "min", patience=5, factor=0.85
+    )
+    criterion = nn.MSELoss()
+
+    # Load your data (replace with your real dataloaders)
+    train_loader = DataLoader(train_set, batch_size=16, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=16, shuffle=True)
+
+    # Train and return validation loss
+    _, val_loss = train_model(model, train_loader, val_loader, optimizer, scheduler, criterion, epochs=200)
+    return val_loss
+
+# === Run Optuna study ===
+study = optuna.create_study(direction="minimize")
+study.optimize(objective, n_trials=250)
+
+print("Best trial:")
+trial = study.best_trial
+print(f"  Validation Loss: {trial.value}")
+print("  Best hyperparameters:")
+for key, value in trial.params.items():
+    print(f"    {key}: {value}")
+
+## define and train best model
+train_indices_folders=np.arange(0, 45) 
+val_indices_folders = np.arange(45, 54) 
+
+train_set = Subset(dataset, train_indices_folders)
+val_set = Subset(dataset, val_indices_folders)
+
+train_loader = DataLoader(train_set, batch_size=16, shuffle=True) #shuffle can be put on true as you prepped your data correctly to look back at previous timesteps
+val_loader = DataLoader(val_set, batch_size=16, shuffle=True)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = FullPipelineModel(input_dim=1024, 
                           #transformer parameters
                           embed_dim=512,
                           n_heads=4, 
-                          n_layers=2,
-                          agg_output_dim=256,
+                          n_layers=1,
+                          agg_output_dim=1024,
                           #lstm parameters
-                          lstm_hidden=512,
+                          lstm_hidden=1024,
                           num_layers=1).to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
-scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.75)
+optimizer = optim.Adam(model.parameters(), lr=1e-6)
+scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.85)
 criterion = nn.MSELoss()
 
-trained_model=train_model(model, train_loader, val_loader, optimizer, scheduler, criterion, epochs=150)
+trained_model, _=train_model(model, train_loader, val_loader, optimizer, scheduler, criterion, epochs=500)
 
 ### testing
 full_loader = DataLoader(dataset, batch_size=1, shuffle=False)

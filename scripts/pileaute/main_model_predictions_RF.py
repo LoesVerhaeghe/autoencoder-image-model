@@ -5,12 +5,12 @@ from os import listdir, path as os_path
 from sklearn.ensemble import RandomForestRegressor
 import torch
 
-path_to_mainfolder = "outputs/zurich/all_images_encoded"
+path_to_mainfolder = "outputs/pileaute/all_images_encoded"
 
 all_image_folders = sorted(listdir(path_to_mainfolder))
 num_folders_total = len(all_image_folders)
 
-df_TSS=pd.read_csv('data/zurich/SST_TSS.csv', index_col=0)
+df_TSS=pd.read_csv('data/pileaute/settler_filtered_data/TSS_eff_error.csv', index_col=0)
 
 
 # --- Load ALL Features, Aggregate, Create Labels and Folder Mapping ---
@@ -22,32 +22,30 @@ processed_folder_indices = [] # Keep track of folders we actually found data for
 folder_idx_counter = 0 
 for folder in all_image_folders:
     # Path to embeddings for this folder
-    path_to_folder = f"{path_to_mainfolder}/{folder}"
+    path_to_folder = f"{path_to_mainfolder}/{folder}/basin5"
     images_in_folder_count = 0
     for subfolder in listdir(path_to_folder):
-        if subfolder!='RLB-S' and subfolder!='RLB-N':
-            path_to_subfolder=f"{path_to_folder}/{subfolder}"
-            if not os_path.exists(path_to_subfolder) or not listdir(path_to_subfolder):
-                print(f"Warning: Embeddings path not found or empty for folder {folder}/{subfolder}, skipping.")
-                continue
+        path_to_subfolder=f"{path_to_folder}/{subfolder}"
+        if not os_path.exists(path_to_subfolder) or not listdir(path_to_subfolder):
+            print(f"Warning: Embeddings path not found or empty for folder {folder}/{subfolder}, skipping.")
+            continue
 
-            images_list_embeddings = listdir(path_to_subfolder)
-            for image_file in images_list_embeddings:
-                try:
-                    img_path = f"{path_to_subfolder}/{image_file}"
-                    embedding = torch.load(img_path).cpu().numpy() 
-                    all_features_list.append(embedding)
+        images_list_embeddings = listdir(path_to_subfolder)
+        for image_file in images_list_embeddings:
+            try:
+                img_path = f"{path_to_subfolder}/{image_file}"
+                embedding = torch.load(img_path).cpu().numpy() 
+                all_features_list.append(embedding)
 
-                    # Assign labels corresponding to this FOLDER (time point 'folder_idx_counter')
-                    all_labels_TSS_list.append(df_TSS['SST_TSS'].loc[folder].item())
-                    images_in_folder_count += 1
-                except Exception as e:
-                    print(f"Error loading or processing {img_path}: {e}")
+                # Assign labels corresponding to this FOLDER (time point 'folder_idx_counter')
+                all_labels_TSS_list.append(df_TSS['error_TSSeff'].loc[folder].item())
+                images_in_folder_count += 1
+            except Exception as e:
+                print(f"Error loading or processing {img_path}: {e}")
 
-                feature_folder_map.append(folder_idx_counter) # Store the *processed* folder index
+            feature_folder_map.append(folder_idx_counter) # Store the *processed* folder index
     if images_in_folder_count > 0:
         processed_folder_indices.append(folder_idx_counter) # Add original index if processed
-
     folder_idx_counter += 1 # Move to the next folder's error value
 
 all_features_agg = np.array(all_features_list) # Shape (num_total_images, num_agg_features)
@@ -63,9 +61,9 @@ assert len(all_features_agg) == len(TSS_labels) # Check features match labels
 
 # --- Split Based on Time (Processed Folders) ---
 # Use the number of *processed* folders for splitting
-train_indices_folders=np.arange(0, 210)
-val_indices_folders = np.arange(210, 260) 
-test_indices_folders=np.arange(260, 379)
+train_indices_folders=np.arange(0, 45)
+val_indices_folders = np.arange(45, 54) 
+test_indices_folders=np.arange(54, 81)
 
 # Get indices of features belonging to train folders vs test folders
 train_indices = np.where(np.isin(feature_folder_map, train_indices_folders))[0]
@@ -83,44 +81,43 @@ y_val = TSS_labels[val_indices]
 ############################################################
 
 
-### hyperparametertune
+## hyperparametertune
 
-# from sklearn.model_selection import RandomizedSearchCV
-# param_dist = {
-#     'n_estimators': [50, 100, 200, 300, 400, 500],
-#     'max_depth': [5, 10, 15, 20, 30, None],
-#     'min_samples_split': [2, 5, 10, 20],
-#     'min_samples_leaf': [1, 2, 4, 8],
-#     'max_features': ['log2'] #None is overfitting, sqrt is underfitting
-# }
-# rf = RandomForestRegressor(random_state=42, n_jobs=-1)
-# random_search = RandomizedSearchCV(
-#     rf,
-#     param_distributions=param_dist,
-#     n_iter=50,  
-#     cv=[(train_indices, val_indices)],  # time-aware split
-#     scoring='neg_mean_squared_error',
-#     random_state=42,
-#     n_jobs=-1,
-#     verbose=2
-# )
-# X_combined = np.concatenate([X_train, X_val], axis=0)
-# y_combined = np.concatenate([y_train, y_val], axis=0)
-
-# random_search.fit(X_combined, y_combined)
-# print("Best params:", random_search.best_params_)
-# #Best params: {'n_estimators': 50, 'min_samples_split': 10, 'min_samples_leaf': 2, 'max_features': 'log2', 'max_depth': 15}
-# best_rf = random_search.best_estimator_
-
-best_rf = RandomForestRegressor(
-    n_estimators=50,
-    min_samples_split=10,
-    min_samples_leaf=2,
-    max_features='log2',
-    max_depth=15,
+from sklearn.model_selection import RandomizedSearchCV
+param_dist = {
+    'n_estimators': [10, 20, 50, 100, 200, 300, 400, 500],
+    'max_depth': [5, 10, 15, 20, 30, None],
+    'min_samples_split': [2, 5, 10, 20],
+    'min_samples_leaf': [1, 2, 4, 8],
+    'max_features': ['log2'] #None is overfitting, sqrt is underfitting
+}
+rf = RandomForestRegressor(random_state=42, n_jobs=-1)
+random_search = RandomizedSearchCV(
+    rf,
+    param_distributions=param_dist,
+    n_iter=100,  
+    cv=[(train_indices, val_indices)],  # time-aware split
+    scoring='neg_mean_squared_error',
     random_state=42,
-    n_jobs=-1  
+    n_jobs=-1,
+    verbose=2
 )
+X_combined = np.concatenate([X_train, X_val], axis=0)
+y_combined = np.concatenate([y_train, y_val], axis=0)
+
+random_search.fit(X_combined, y_combined)
+print("Best params:", random_search.best_params_)
+best_rf = random_search.best_estimator_
+
+# best_rf = RandomForestRegressor(
+#     n_estimators=50,
+#     min_samples_split=10,
+#     min_samples_leaf=2,
+#     max_features='log2',
+#     max_depth=15,
+#     random_state=42,
+#     n_jobs=-1  
+# )
 
 best_rf.fit(X_train, y_train)
 
@@ -169,7 +166,7 @@ TSS_lower = pd.Series(
 
 plt.figure(figsize=(14, 3), dpi=200)
 plt.rcParams.update({'font.size': 12})    
-plt.plot(df_TSS['SST_TSS'], '.-', label='Measurements', color='blue')
+plt.plot(df_TSS['error_TSSeff'], '.-', label='Measurements', color='blue')
 plt.plot(TSS_predictions.iloc[train_indices_folders], '.-', label='HM predictions (train)', color='orange')
 plt.plot(TSS_predictions.iloc[val_indices_folders], '.-', label='HM predictions (validation)', color='green')
 plt.plot(TSS_predictions.iloc[test_indices_folders], '.-', label='HM predictions (test)', color='red')

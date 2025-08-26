@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, random_split, ConcatDataset
 from torchmetrics.image import StructuralSimilarityIndexMeasure as SSIM
 
 #use GPU if available
-torch.cuda.set_device(0) 
+torch.cuda.set_device(2) 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print('device =', DEVICE)
 
@@ -65,17 +65,17 @@ train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, num_workers=1, p
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, num_workers=1, pin_memory=True, shuffle=False)
 
 # ## Train autoencoder
-trained_model, log_dict=train_autoencoder(NUM_EPOCHS, 
-                                          model, 
-                                          OPTIMIZER, 
-                                          DEVICE, 
-                                          train_loader, 
-                                          val_loader, 
-                                          loss_fn=combined_loss, 
-                                          scheduler=SCHEDULER,
-                                          skip_epoch_stats=False, 
-                                          plot_losses_path='outputs/pileaute/losses.png', 
-                                          save_model_path=save_model_path)
+# trained_model, log_dict=train_autoencoder(NUM_EPOCHS, 
+#                                           model, 
+#                                           OPTIMIZER, 
+#                                           DEVICE, 
+#                                           train_loader, 
+#                                           val_loader, 
+#                                           loss_fn=combined_loss, 
+#                                           scheduler=SCHEDULER,
+#                                           skip_epoch_stats=False, 
+#                                           plot_losses_path='outputs/pileaute/losses.png', 
+#                                           save_model_path=save_model_path)
 
 model = torch.load(save_model_path, map_location=DEVICE)
 visualize_reconstruction(model, DEVICE, train_loader, num_images=5, path='outputs/pileaute/traindataset_reconstruction.png')
@@ -117,7 +117,8 @@ def encode_images(trained_model, dataset):
                 os.remove(original_path)  # Delete the original file
                 
 # # Encode and save for both magnifications
-encode_images(model, dataset)
+encode_images(model,dataset_10x)
+encode_images(model,dataset_40x)
 
 # ## plot latent space, only if latent space is not flattened
 # import matplotlib.pyplot as plt
