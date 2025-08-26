@@ -47,14 +47,14 @@ class MicroscopicImagesPileaute(Dataset):
         """
         self.root = root
         self.transform = transform
-        self.image_paths = extract_image_paths_pileaute(root, start_folder=start_folder, end_folder=end_folder, magnification=magnification)
+        self.images = extract_image_paths_pileaute(root, start_folder=start_folder, end_folder=end_folder, magnification=magnification)
         self.targets = []
 
     def __len__(self):
-        return len(self.image_paths)
+        return len(self.images)
 
     def __getitem__(self, idx):
-        image_path = self.image_paths[idx]
+        image_path = self.images[idx]
         image = torch.load(image_path).to(torch.float32)
         if image is None:
             print(f"Failed to load image at index {idx} (path: {image_path})")
